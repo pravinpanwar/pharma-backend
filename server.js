@@ -136,6 +136,7 @@ app.post("/api/feedback", async (req, res) => {
 
 
 // Generate interview summary using Google AI
+// Generate structured interview summary using Google AI
 app.get("/api/interview-summary/:sessionId", async (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -152,12 +153,46 @@ app.get("/api/interview-summary/:sessionId", async (req, res) => {
       .join("\n");
 
     const prompt = `You are an experienced hiring manager summarizing an interview.
-    Review the following interview details and provide a comprehensive summary:\n\n${interviewDetails}`;
+    Review the following interview details and provide a comprehensive summary in the following structured JSON format, without markdown or extra characters:
+    [
+      {
+        "section": "Overall Assessment",
+        "content": "Provide a brief overall assessment of the candidate's performance"
+      },
+      {
+        "section": "Key Strengths",
+        "content": ["Strength 1", "Strength 2", "Strength 3"]
+      },
+      {
+        "section": "Areas for Development",
+        "content": ["Area 1", "Area 2", "Area 3"]
+      },
+      {
+        "section": "Technical Competency",
+        "content": "Evaluate the candidate's technical knowledge and skills"
+      },
+      {
+        "section": "Communication Skills",
+        "content": "Assess the candidate's communication ability"
+      },
+      {
+        "section": "Final Recommendation",
+        "content": "Provide a hiring recommendation and any next steps"
+      }
+    ]
+    Ensure the response is a valid JSON array without any additional formatting.
+    
+    Interview Details:\n${interviewDetails}`;
 
     const result = await model.generateContent(prompt);
-    const summary = result.response.text();
+    let summaryText = result.response.text();
 
-    log(`Generated summary for session ${sessionId}`);
+    // Clean the response to ensure it's valid JSON
+    summaryText = summaryText.replace(/```json|```/g, "").trim();
+
+    const summary = JSON.parse(summaryText);
+
+    log(`Generated structured summary for session ${sessionId}`);
     res.json({ summary });
   } catch (error) {
     log("Error generating interview summary", error);
